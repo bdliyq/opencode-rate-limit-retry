@@ -1,0 +1,31 @@
+{
+  "name": "@bdliyq/opencode-rate-limit-retry",
+  "version": "1.0.0",
+  "description": "OpenCode plugin that retries the same model with exponential backoff on rate limit errors",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "rate-limit",
+    "retry",
+    "exponential-backoff"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.0.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.0.0",
+    "@types/node": "^25.5.2",
+    "typescript": "^5.0.0"
+  }
+}
