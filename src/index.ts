@@ -132,14 +132,15 @@ export const RateLimitRetry: Plugin = async ({ client }) => {
 
         const toastMsg = `Rate limit! statusCode=${data.statusCode || "unknown"}. See ~/.config/opencode/rate-limit-retry-debug.log`;
         try {
-          await client.tui?.toast({
-            title: "Rate Limit Detected",
-            message: toastMsg,
-            variant: "error",
-            duration: 10000,
+          await (client.tui as any)?.showToast({
+            body: {
+              title: "Rate Limit Detected",
+              message: `statusCode=${data.statusCode || "unknown"}. See ~/.config/opencode/rate-limit-retry-debug.log`,
+              variant: "error",
+              duration: 10000,
+            },
           });
         } catch {
-          // Ignore toast errors
         }
 
         if (retryingSessions.has(sessionID)) {
@@ -174,15 +175,6 @@ export const RateLimitRetry: Plugin = async ({ client }) => {
         const delay = calculateDelay(state.attempts - 1, config.baseDelayMs, config.maxDelayMs, config.jitterFactor);
 
         try {
-          await client.session.abort({ path: { id: sessionID } });
-          writeDebugLog(`[ABORT] Session aborted successfully`);
-        } catch (e) {
-          writeDebugLog(`[ABORT] Failed: ${JSON.stringify(e)}`);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, delay));
-
-        try {
           const messagesResult = await client.session.messages({ path: { id: sessionID } });
           if (!messagesResult.data) {
             writeDebugLog(`[RETRY] No messages data for session ${sessionID}`);
@@ -190,41 +182,25 @@ export const RateLimitRetry: Plugin = async ({ client }) => {
             return;
           }
 
-          const lastUserMessage = [...messagesResult.data].reverse().find((m) => m.info?.role === "user");
-          if (!lastUserMessage) {
-            writeDebugLog(`[RETRY] No user message found for session ${sessionID}`);
-            retryingSessions.delete(sessionID);
-            return;
-          }
-
-          const parts = lastUserMessage.parts || [];
-          if (parts.length === 0) {
-            writeDebugLog(`[RETRY] No parts in user message for session ${sessionID}`);
-            retryingSessions.delete(sessionID);
-            return;
-          }
-
-          writeDebugLog(`[RETRY] Found ${parts.length} parts, sending retry notice and re-prompt`);
-
           const retryNotice: any = {
             type: "text",
-            text: `⚠️ Rate Limit Retry — Attempt ${state.attempts}/${config.maxRetries} (waiting ${Math.round(delay / 1000)}s before retry)`,
-            synthetic: true,
+            text: `⚠️ Rate Limit Retry — Attempt ${state.attempts}/${config.maxRetries} (waiting ${Math.round(delay / 1000)}s before retry). Please continue from where you left off.`,
           };
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
 
           await client.session.promptAsync({
             path: { id: sessionID },
             body: {
-              parts: [retryNotice, ...parts.map((p: any) => {
-                if (p.type === "text") return { type: "text" as const, text: p.content ?? p.text ?? "" };
-                return p;
-              })],
+              parts: [retryNotice],
               model: { providerID: model.providerID, modelID: model.modelID },
             },
           });
-          writeDebugLog(`[RETRY] promptAsync completed successfully`);
+          writeDebugLog(`[RETRY] Continue prompt sent, AI will resume from incomplete response`);
+          state.attempts = 0;
+          writeDebugLog(`[RETRY] Retry succeeded, reset attempts to 0 for ${sessionID}`);
         } catch (e) {
-          writeDebugLog(`[RETRY] promptAsync failed: ${JSON.stringify(e)}`);
+          writeDebugLog(`[RETRY] Continue prompt failed: ${JSON.stringify(e)}`);
         } finally {
           retryingSessions.delete(sessionID);
           writeDebugLog(`[RETRY] Cleaned up retryingSessions for ${sessionID}`);

@@ -1,6 +1,6 @@
 {
   "name": "@bdliyq/opencode-rate-limit-retry",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "OpenCode plugin that retries the same model with exponential backoff on rate limit errors",
   "type": "module",
   "main": "dist/index.js",
